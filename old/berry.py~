@@ -1,0 +1,64 @@
+#!/usr/bin/python
+import time
+import os
+import RPi.GPIO as GPIO
+from daemon import runner
+import subprocess
+from subprocess import call
+
+class Barry():
+    def __init__(self):
+	self.hoorn = 21
+        self.buzzer = 26
+	self.runningPid = -1
+
+        self.stdin_path = '/dev/null'
+        self.stdout_path = '/dev/tty'
+        self.stderr_path = '/dev/tty'
+        self.pidfile_path =  '/tmp/barry2.pid'
+        self.pidfile_timeout = 5
+	GPIO.setmode(GPIO.BCM)
+    def run(self):
+        GPIO.setup(self.buzzer, GPIO.OUT)
+        GPIO.setup(self.hoorn, GPIO.IN, pull_up_down = GPIO.PUD_DOWN)
+        new=True
+        while True:
+            if(self.runningPid >= 0):
+            	#hatseflatse!
+            	os.killpg(self.runningPid, signal.SIGTERM)
+            	self.runningPid = -1
+	    	rang=False
+            if(GPIO.input(self.hoorn) == 0):
+                rang=False
+		print("Picked up the phone")
+                #say hello
+                #call(["/home/osmc/Pi/PiAUISuite/ReadSpeaker/sayhello"])
+		print("Starting voice command")
+                #call voicecommand daemon
+                #voicecommand = subprocess.Popen(["/home/osmc/Pi/PiAUISuite/VoiceCommand/voicecommand", "-c",  "-f", "/home/osmc/Pi/PiAUISuite/VoiceCommand/.commands.conf"])
+                voicecommand = subprocess.Popen(["echo", "and again"])
+		self.runningPid = voicecommand.pid;
+		print("Pid: " + self.runningPid)
+		print("~~~~~~~~~~~~~~~~~~~~~~")
+		while(GPIO.input(self.hoorn) == 0):
+	                #call(["/home/osmc/Pi/PiAUISuite/ReadSpeaker/anythingelse"])
+	                #voicecommand = subprocess.Popen(["/home/osmc/Pi/PiAUISuite/VoiceCommand/voicecommand", "-c", "-f", "/home/osmc/Pi/PiAUISuite/VoiceCommand/.commands.conf"])
+			#self.runningPid = voicecommand.pid;
+			#wait until hanging up...
+			time.sleep(1)
+            if(GPIO.input(self.hoorn) == 1):
+		if(new):
+			print("Phone is down")
+			new=False
+		else:
+			print("Hung up")
+	                subprocess.Popen(["/home/osmc/Pi/PiAUISuite/KodiTools/say","Bye!"])
+		while (GPIO.input(self.hoorn) == 1):
+			#wait until someone picks up the phone
+			time.sleep(1)
+    def close(self):
+        GPIO.cleanup()
+
+barry = Barry()
+daemon_runner = runner.DaemonRunner(barry)
+daemon_runner.do_action()
